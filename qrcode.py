@@ -114,15 +114,15 @@ class _ModuleNamespace:
 # Create namespace hierarchy
 qrcode = _ModuleNamespace()
 qrcode.image = _ModuleNamespace()
+qrcode.constants = _ModuleNamespace()
+qrcode.exceptions = _ModuleNamespace()
 qrcode.image.styles = _ModuleNamespace()
 qrcode.image.styles.moduledrawers = _ModuleNamespace()
 qrcode.image.styles.moduledrawers.base = _ModuleNamespace()
 qrcode.image.base = _ModuleNamespace()
 qrcode.image.pil = _ModuleNamespace()
-qrcode.constants = _ModuleNamespace()
 qrcode.base = _ModuleNamespace()
 qrcode.LUT = _ModuleNamespace()
-qrcode.exceptions = _ModuleNamespace()
 qrcode.util = _ModuleNamespace()
 qrcode.compat = _ModuleNamespace()
 qrcode.compat.png = _ModuleNamespace()
@@ -131,25 +131,61 @@ qrcode.main = _ModuleNamespace()
 qrcode.console_scripts = _ModuleNamespace()
 qrcode.__main__ = _ModuleNamespace()
 qrcode.compat.etree = _ModuleNamespace()
-qrcode.image.styles.moduledrawers.pil = _ModuleNamespace()
 qrcode.image.styles.colormasks = _ModuleNamespace()
+qrcode.image.styles.moduledrawers.pil = _ModuleNamespace()
 qrcode.image.styledpil = _ModuleNamespace()
 qrcode.image.styles.moduledrawers.svg = _ModuleNamespace()
 qrcode.image.svg = _ModuleNamespace()
 qrcode.release = _ModuleNamespace()
 
 # Create short name aliases for common module references
+image = qrcode.image
 constants = qrcode.constants
+exceptions = qrcode.exceptions
 base = qrcode.base
 LUT = qrcode.LUT
-exceptions = qrcode.exceptions
 util = qrcode.util
 main = qrcode.main
-image = qrcode.image
 console_scripts = qrcode.console_scripts
 compat = qrcode.compat
 release = qrcode.release
 svg_drawers = qrcode.image.styles.moduledrawers.svg
+
+# ============================================================
+# Module: qrcode.image
+# Original: python-qrcode/qrcode/image/__init__.py
+# ============================================================
+
+
+
+# ============================================================
+# Module: qrcode.constants
+# Original: python-qrcode/qrcode/constants.py
+# ============================================================
+
+ERROR_CORRECT_L = 1
+ERROR_CORRECT_M = 0
+ERROR_CORRECT_Q = 3
+ERROR_CORRECT_H = 2
+PIL_AVAILABLE = find_spec('PIL') is not None
+
+# Populate namespace for qrcode.constants
+qrcode.constants.ERROR_CORRECT_L = ERROR_CORRECT_L
+qrcode.constants.ERROR_CORRECT_M = ERROR_CORRECT_M
+qrcode.constants.ERROR_CORRECT_Q = ERROR_CORRECT_Q
+qrcode.constants.ERROR_CORRECT_H = ERROR_CORRECT_H
+qrcode.constants.PIL_AVAILABLE = PIL_AVAILABLE
+
+# ============================================================
+# Module: qrcode.exceptions
+# Original: python-qrcode/qrcode/exceptions.py
+# ============================================================
+
+class DataOverflowError(Exception):
+    pass
+
+# Populate namespace for qrcode.exceptions
+qrcode.exceptions.DataOverflowError = DataOverflowError
 
 # ============================================================
 # Module: qrcode.image.styles.moduledrawers.base
@@ -374,24 +410,6 @@ class PilImage(qrcode.image.base.BaseImage):
 qrcode.image.pil.PilImage = PilImage
 
 # ============================================================
-# Module: qrcode.constants
-# Original: python-qrcode/qrcode/constants.py
-# ============================================================
-
-ERROR_CORRECT_L = 1
-ERROR_CORRECT_M = 0
-ERROR_CORRECT_Q = 3
-ERROR_CORRECT_H = 2
-PIL_AVAILABLE = find_spec('PIL') is not None
-
-# Populate namespace for qrcode.constants
-qrcode.constants.ERROR_CORRECT_L = ERROR_CORRECT_L
-qrcode.constants.ERROR_CORRECT_M = ERROR_CORRECT_M
-qrcode.constants.ERROR_CORRECT_Q = ERROR_CORRECT_Q
-qrcode.constants.ERROR_CORRECT_H = ERROR_CORRECT_H
-qrcode.constants.PIL_AVAILABLE = PIL_AVAILABLE
-
-# ============================================================
 # Module: qrcode.base
 # Original: python-qrcode/qrcode/base.py
 # ============================================================
@@ -488,17 +506,6 @@ rsPoly_LUT = {7: [1, 127, 122, 154, 164, 11, 68, 117], 10: [1, 216, 194, 159, 11
 
 # Populate namespace for qrcode.LUT
 qrcode.LUT.rsPoly_LUT = rsPoly_LUT
-
-# ============================================================
-# Module: qrcode.exceptions
-# Original: python-qrcode/qrcode/exceptions.py
-# ============================================================
-
-class DataOverflowError(Exception):
-    pass
-
-# Populate namespace for qrcode.exceptions
-qrcode.exceptions.DataOverflowError = DataOverflowError
 
 # ============================================================
 # Module: qrcode.util
@@ -1395,13 +1402,6 @@ qrcode.main.GenericImageLocal = GenericImageLocal
 qrcode.main.QRCode = QRCode
 
 # ============================================================
-# Module: qrcode.image
-# Original: python-qrcode/qrcode/image/__init__.py
-# ============================================================
-
-
-
-# ============================================================
 # Module: qrcode
 # Original: python-qrcode/qrcode/__init__.py
 # ============================================================
@@ -1558,6 +1558,194 @@ try:
     import lxml.etree as ET
 except ImportError:
     import xml.etree.ElementTree as ET
+
+# ============================================================
+# Module: qrcode.image.styles.colormasks
+# Original: python-qrcode/qrcode/image/styles/colormasks.py
+# ============================================================
+
+class QRColorMask:
+    """
+    QRColorMask is used to color in the QRCode.
+
+    By the time apply_mask is called, the QRModuleDrawer of the StyledPilImage
+    will have drawn all of the modules on the canvas (the color of these
+    modules will be mostly black, although antialiasing may result in
+    gradients) In the base class, apply_mask is implemented such that the
+    background color will remain, but the foreground pixels will be replaced by
+    a color determined by a call to get_fg_pixel. There is additional
+    calculation done to preserve the gradient artifacts of antialiasing.
+
+    All QRColorMask objects should be careful about RGB vs RGBA color spaces.
+
+    For examples of what these look like, see doc/color_masks.png
+    """
+    back_color = (255, 255, 255)
+    has_transparency = False
+    paint_color = back_color
+
+    def initialize(self, styledPilImage, image):
+        self.paint_color = styledPilImage.paint_color
+
+    def apply_mask(self, image, use_cache=False):
+        width, height = image.size
+        pixels = image.load()
+        fg_color_cache = {} if use_cache else None
+        for x in range(width):
+            for y in range(height):
+                current_color = pixels[x, y]
+                if current_color == self.back_color:
+                    continue
+                if use_cache and current_color in fg_color_cache:
+                    pixels[x, y] = fg_color_cache[current_color]
+                    continue
+                norm = self.extrap_color(self.back_color, self.paint_color, current_color)
+                if norm is not None:
+                    new_color = self.interp_color(self.get_bg_pixel(image, x, y), self.get_fg_pixel(image, x, y), norm)
+                    pixels[x, y] = new_color
+                    if use_cache:
+                        fg_color_cache[current_color] = new_color
+                else:
+                    pixels[x, y] = self.get_bg_pixel(image, x, y)
+
+    def get_fg_pixel(self, image, x, y):
+        raise NotImplementedError('QRModuleDrawer.paint_fg_pixel')
+
+    def get_bg_pixel(self, image, x, y):
+        return self.back_color
+
+    def interp_num(self, n1, n2, norm):
+        return int(n2 * norm + n1 * (1 - norm))
+
+    def interp_color(self, col1, col2, norm):
+        return tuple((self.interp_num(col1[i], col2[i], norm) for i in range(len(col1))))
+
+    def extrap_num(self, n1, n2, interped_num):
+        if n2 == n1:
+            return None
+        return (interped_num - n1) / (n2 - n1)
+
+    def extrap_color(self, col1, col2, interped_color):
+        normed = []
+        for c1, c2, ci in zip(col1, col2, interped_color):
+            extrap = self.extrap_num(c1, c2, ci)
+            if extrap is not None:
+                normed.append(extrap)
+        if not normed:
+            return None
+        return sum(normed) / len(normed)
+
+class SolidFillColorMask(QRColorMask):
+    """
+    Just fills in the background with one color and the foreground with another
+    """
+
+    def __init__(self, back_color=(255, 255, 255), front_color=(0, 0, 0)):
+        self.back_color = back_color
+        self.front_color = front_color
+        self.has_transparency = len(self.back_color) == 4
+
+    def apply_mask(self, image):
+        if self.back_color == (255, 255, 255) and self.front_color == (0, 0, 0):
+            pass
+        else:
+            QRColorMask.apply_mask(self, image, use_cache=True)
+
+    def get_fg_pixel(self, image, x, y):
+        return self.front_color
+
+class RadialGradiantColorMask(QRColorMask):
+    """
+    Fills in the foreground with a radial gradient from the center to the edge
+    """
+
+    def __init__(self, back_color=(255, 255, 255), center_color=(0, 0, 0), edge_color=(0, 0, 255)):
+        self.back_color = back_color
+        self.center_color = center_color
+        self.edge_color = edge_color
+        self.has_transparency = len(self.back_color) == 4
+
+    def get_fg_pixel(self, image, x, y):
+        width, _ = image.size
+        normedDistanceToCenter = math.sqrt((x - width / 2) ** 2 + (y - width / 2) ** 2) / (math.sqrt(2) * width / 2)
+        return self.interp_color(self.center_color, self.edge_color, normedDistanceToCenter)
+
+class SquareGradiantColorMask(QRColorMask):
+    """
+    Fills in the foreground with a square gradient from the center to the edge
+    """
+
+    def __init__(self, back_color=(255, 255, 255), center_color=(0, 0, 0), edge_color=(0, 0, 255)):
+        self.back_color = back_color
+        self.center_color = center_color
+        self.edge_color = edge_color
+        self.has_transparency = len(self.back_color) == 4
+
+    def get_fg_pixel(self, image, x, y):
+        width, _ = image.size
+        normedDistanceToCenter = max(abs(x - width / 2), abs(y - width / 2)) / (width / 2)
+        return self.interp_color(self.center_color, self.edge_color, normedDistanceToCenter)
+
+class HorizontalGradiantColorMask(QRColorMask):
+    """
+    Fills in the foreground with a gradient sweeping from the left to the right
+    """
+
+    def __init__(self, back_color=(255, 255, 255), left_color=(0, 0, 0), right_color=(0, 0, 255)):
+        self.back_color = back_color
+        self.left_color = left_color
+        self.right_color = right_color
+        self.has_transparency = len(self.back_color) == 4
+
+    def get_fg_pixel(self, image, x, y):
+        width, _ = image.size
+        return self.interp_color(self.left_color, self.right_color, x / width)
+
+class VerticalGradiantColorMask(QRColorMask):
+    """
+    Fills in the forefround with a gradient sweeping from the top to the bottom
+    """
+
+    def __init__(self, back_color=(255, 255, 255), top_color=(0, 0, 0), bottom_color=(0, 0, 255)):
+        self.back_color = back_color
+        self.top_color = top_color
+        self.bottom_color = bottom_color
+        self.has_transparency = len(self.back_color) == 4
+
+    def get_fg_pixel(self, image, x, y):
+        width, _ = image.size
+        return self.interp_color(self.top_color, self.bottom_color, y / width)
+
+class ImageColorMask(QRColorMask):
+    """
+    Fills in the foreground with pixels from another image, either passed by
+    path or passed by image object.
+    """
+
+    def __init__(self, back_color=(255, 255, 255), color_mask_path=None, color_mask_image=None):
+        self.back_color = back_color
+        if color_mask_image:
+            self.color_img = color_mask_image
+        else:
+            self.color_img = Image.open(color_mask_path)
+        self.has_transparency = len(self.back_color) == 4
+
+    def initialize(self, styledPilImage, image):
+        self.paint_color = styledPilImage.paint_color
+        self.color_img = self.color_img.resize(image.size)
+
+    def get_fg_pixel(self, image, x, y):
+        width, _ = image.size
+        return self.color_img.getpixel((x, y))
+
+# Populate namespace for qrcode.image.styles.colormasks
+qrcode.image.styles.colormasks.QRColorMask = QRColorMask
+qrcode.image.styles.colormasks.SolidFillColorMask = SolidFillColorMask
+qrcode.image.styles.colormasks.RadialGradiantColorMask = RadialGradiantColorMask
+qrcode.image.styles.colormasks.SquareGradiantColorMask = SquareGradiantColorMask
+qrcode.image.styles.colormasks.HorizontalGradiantColorMask = HorizontalGradiantColorMask
+qrcode.image.styles.colormasks.VerticalGradiantColorMask = VerticalGradiantColorMask
+qrcode.image.styles.colormasks.ImageColorMask = ImageColorMask
 
 # ============================================================
 # Module: qrcode.image.styles.moduledrawers.pil
@@ -1800,194 +1988,6 @@ qrcode.image.styles.moduledrawers.pil.GappedCircleModuleDrawer = GappedCircleMod
 qrcode.image.styles.moduledrawers.pil.RoundedModuleDrawer = RoundedModuleDrawer
 qrcode.image.styles.moduledrawers.pil.VerticalBarsDrawer = VerticalBarsDrawer
 qrcode.image.styles.moduledrawers.pil.HorizontalBarsDrawer = HorizontalBarsDrawer
-
-# ============================================================
-# Module: qrcode.image.styles.colormasks
-# Original: python-qrcode/qrcode/image/styles/colormasks.py
-# ============================================================
-
-class QRColorMask:
-    """
-    QRColorMask is used to color in the QRCode.
-
-    By the time apply_mask is called, the QRModuleDrawer of the StyledPilImage
-    will have drawn all of the modules on the canvas (the color of these
-    modules will be mostly black, although antialiasing may result in
-    gradients) In the base class, apply_mask is implemented such that the
-    background color will remain, but the foreground pixels will be replaced by
-    a color determined by a call to get_fg_pixel. There is additional
-    calculation done to preserve the gradient artifacts of antialiasing.
-
-    All QRColorMask objects should be careful about RGB vs RGBA color spaces.
-
-    For examples of what these look like, see doc/color_masks.png
-    """
-    back_color = (255, 255, 255)
-    has_transparency = False
-    paint_color = back_color
-
-    def initialize(self, styledPilImage, image):
-        self.paint_color = styledPilImage.paint_color
-
-    def apply_mask(self, image, use_cache=False):
-        width, height = image.size
-        pixels = image.load()
-        fg_color_cache = {} if use_cache else None
-        for x in range(width):
-            for y in range(height):
-                current_color = pixels[x, y]
-                if current_color == self.back_color:
-                    continue
-                if use_cache and current_color in fg_color_cache:
-                    pixels[x, y] = fg_color_cache[current_color]
-                    continue
-                norm = self.extrap_color(self.back_color, self.paint_color, current_color)
-                if norm is not None:
-                    new_color = self.interp_color(self.get_bg_pixel(image, x, y), self.get_fg_pixel(image, x, y), norm)
-                    pixels[x, y] = new_color
-                    if use_cache:
-                        fg_color_cache[current_color] = new_color
-                else:
-                    pixels[x, y] = self.get_bg_pixel(image, x, y)
-
-    def get_fg_pixel(self, image, x, y):
-        raise NotImplementedError('QRModuleDrawer.paint_fg_pixel')
-
-    def get_bg_pixel(self, image, x, y):
-        return self.back_color
-
-    def interp_num(self, n1, n2, norm):
-        return int(n2 * norm + n1 * (1 - norm))
-
-    def interp_color(self, col1, col2, norm):
-        return tuple((self.interp_num(col1[i], col2[i], norm) for i in range(len(col1))))
-
-    def extrap_num(self, n1, n2, interped_num):
-        if n2 == n1:
-            return None
-        return (interped_num - n1) / (n2 - n1)
-
-    def extrap_color(self, col1, col2, interped_color):
-        normed = []
-        for c1, c2, ci in zip(col1, col2, interped_color):
-            extrap = self.extrap_num(c1, c2, ci)
-            if extrap is not None:
-                normed.append(extrap)
-        if not normed:
-            return None
-        return sum(normed) / len(normed)
-
-class SolidFillColorMask(QRColorMask):
-    """
-    Just fills in the background with one color and the foreground with another
-    """
-
-    def __init__(self, back_color=(255, 255, 255), front_color=(0, 0, 0)):
-        self.back_color = back_color
-        self.front_color = front_color
-        self.has_transparency = len(self.back_color) == 4
-
-    def apply_mask(self, image):
-        if self.back_color == (255, 255, 255) and self.front_color == (0, 0, 0):
-            pass
-        else:
-            QRColorMask.apply_mask(self, image, use_cache=True)
-
-    def get_fg_pixel(self, image, x, y):
-        return self.front_color
-
-class RadialGradiantColorMask(QRColorMask):
-    """
-    Fills in the foreground with a radial gradient from the center to the edge
-    """
-
-    def __init__(self, back_color=(255, 255, 255), center_color=(0, 0, 0), edge_color=(0, 0, 255)):
-        self.back_color = back_color
-        self.center_color = center_color
-        self.edge_color = edge_color
-        self.has_transparency = len(self.back_color) == 4
-
-    def get_fg_pixel(self, image, x, y):
-        width, _ = image.size
-        normedDistanceToCenter = math.sqrt((x - width / 2) ** 2 + (y - width / 2) ** 2) / (math.sqrt(2) * width / 2)
-        return self.interp_color(self.center_color, self.edge_color, normedDistanceToCenter)
-
-class SquareGradiantColorMask(QRColorMask):
-    """
-    Fills in the foreground with a square gradient from the center to the edge
-    """
-
-    def __init__(self, back_color=(255, 255, 255), center_color=(0, 0, 0), edge_color=(0, 0, 255)):
-        self.back_color = back_color
-        self.center_color = center_color
-        self.edge_color = edge_color
-        self.has_transparency = len(self.back_color) == 4
-
-    def get_fg_pixel(self, image, x, y):
-        width, _ = image.size
-        normedDistanceToCenter = max(abs(x - width / 2), abs(y - width / 2)) / (width / 2)
-        return self.interp_color(self.center_color, self.edge_color, normedDistanceToCenter)
-
-class HorizontalGradiantColorMask(QRColorMask):
-    """
-    Fills in the foreground with a gradient sweeping from the left to the right
-    """
-
-    def __init__(self, back_color=(255, 255, 255), left_color=(0, 0, 0), right_color=(0, 0, 255)):
-        self.back_color = back_color
-        self.left_color = left_color
-        self.right_color = right_color
-        self.has_transparency = len(self.back_color) == 4
-
-    def get_fg_pixel(self, image, x, y):
-        width, _ = image.size
-        return self.interp_color(self.left_color, self.right_color, x / width)
-
-class VerticalGradiantColorMask(QRColorMask):
-    """
-    Fills in the forefround with a gradient sweeping from the top to the bottom
-    """
-
-    def __init__(self, back_color=(255, 255, 255), top_color=(0, 0, 0), bottom_color=(0, 0, 255)):
-        self.back_color = back_color
-        self.top_color = top_color
-        self.bottom_color = bottom_color
-        self.has_transparency = len(self.back_color) == 4
-
-    def get_fg_pixel(self, image, x, y):
-        width, _ = image.size
-        return self.interp_color(self.top_color, self.bottom_color, y / width)
-
-class ImageColorMask(QRColorMask):
-    """
-    Fills in the foreground with pixels from another image, either passed by
-    path or passed by image object.
-    """
-
-    def __init__(self, back_color=(255, 255, 255), color_mask_path=None, color_mask_image=None):
-        self.back_color = back_color
-        if color_mask_image:
-            self.color_img = color_mask_image
-        else:
-            self.color_img = Image.open(color_mask_path)
-        self.has_transparency = len(self.back_color) == 4
-
-    def initialize(self, styledPilImage, image):
-        self.paint_color = styledPilImage.paint_color
-        self.color_img = self.color_img.resize(image.size)
-
-    def get_fg_pixel(self, image, x, y):
-        width, _ = image.size
-        return self.color_img.getpixel((x, y))
-
-# Populate namespace for qrcode.image.styles.colormasks
-qrcode.image.styles.colormasks.QRColorMask = QRColorMask
-qrcode.image.styles.colormasks.SolidFillColorMask = SolidFillColorMask
-qrcode.image.styles.colormasks.RadialGradiantColorMask = RadialGradiantColorMask
-qrcode.image.styles.colormasks.SquareGradiantColorMask = SquareGradiantColorMask
-qrcode.image.styles.colormasks.HorizontalGradiantColorMask = HorizontalGradiantColorMask
-qrcode.image.styles.colormasks.VerticalGradiantColorMask = VerticalGradiantColorMask
-qrcode.image.styles.colormasks.ImageColorMask = ImageColorMask
 
 # ============================================================
 # Module: qrcode.image.styledpil
