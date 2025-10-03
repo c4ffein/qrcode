@@ -113,20 +113,20 @@ class _ModuleNamespace:
 
 # Create namespace hierarchy
 qrcode = _ModuleNamespace()
-qrcode.image = _ModuleNamespace()
 qrcode.constants = _ModuleNamespace()
+qrcode.image = _ModuleNamespace()
 qrcode.exceptions = _ModuleNamespace()
 qrcode.image.styles = _ModuleNamespace()
 qrcode.image.styles.moduledrawers = _ModuleNamespace()
 qrcode.image.styles.moduledrawers.base = _ModuleNamespace()
 qrcode.image.base = _ModuleNamespace()
 qrcode.image.pil = _ModuleNamespace()
-qrcode.base = _ModuleNamespace()
-qrcode.LUT = _ModuleNamespace()
-qrcode.util = _ModuleNamespace()
 qrcode.compat = _ModuleNamespace()
 qrcode.compat.png = _ModuleNamespace()
 qrcode.image.pure = _ModuleNamespace()
+qrcode.LUT = _ModuleNamespace()
+qrcode.base = _ModuleNamespace()
+qrcode.util = _ModuleNamespace()
 qrcode.main = _ModuleNamespace()
 qrcode.console_scripts = _ModuleNamespace()
 qrcode.__main__ = _ModuleNamespace()
@@ -139,24 +139,17 @@ qrcode.image.svg = _ModuleNamespace()
 qrcode.release = _ModuleNamespace()
 
 # Create short name aliases for common module references
-image = qrcode.image
 constants = qrcode.constants
+image = qrcode.image
 exceptions = qrcode.exceptions
-base = qrcode.base
 LUT = qrcode.LUT
+base = qrcode.base
 util = qrcode.util
 main = qrcode.main
 console_scripts = qrcode.console_scripts
 compat = qrcode.compat
 release = qrcode.release
 svg_drawers = qrcode.image.styles.moduledrawers.svg
-
-# ============================================================
-# Module: qrcode.image
-# Original: python-qrcode/qrcode/image/__init__.py
-# ============================================================
-
-
 
 # ============================================================
 # Module: qrcode.constants
@@ -175,6 +168,13 @@ qrcode.constants.ERROR_CORRECT_M = ERROR_CORRECT_M
 qrcode.constants.ERROR_CORRECT_Q = ERROR_CORRECT_Q
 qrcode.constants.ERROR_CORRECT_H = ERROR_CORRECT_H
 qrcode.constants.PIL_AVAILABLE = PIL_AVAILABLE
+
+# ============================================================
+# Module: qrcode.image
+# Original: python-qrcode/qrcode/image/__init__.py
+# ============================================================
+
+
 
 # ============================================================
 # Module: qrcode.exceptions
@@ -410,6 +410,77 @@ class PilImage(qrcode.image.base.BaseImage):
 qrcode.image.pil.PilImage = PilImage
 
 # ============================================================
+# Module: qrcode.compat.png
+# Original: python-qrcode/qrcode/compat/png.py
+# ============================================================
+
+PngWriter = None
+try:
+    from png import Writer as PngWriter
+except ImportError:
+    pass
+
+# Populate namespace for qrcode.compat.png
+qrcode.compat.png.PngWriter = PngWriter
+
+# ============================================================
+# Module: qrcode.image.pure
+# Original: python-qrcode/qrcode/image/pure.py
+# ============================================================
+
+class PyPNGImage(BaseImage):
+    """
+    pyPNG image builder.
+    """
+    kind = 'PNG'
+    allowed_kinds = ('PNG',)
+    needs_drawrect = False
+
+    def new_image(self, **kwargs):
+        if not PngWriter:
+            raise ImportError('PyPNG library not installed.')
+        return PngWriter(self.pixel_size, self.pixel_size, greyscale=True, bitdepth=1)
+
+    def drawrect(self, row, col):
+        """
+        Not used.
+        """
+
+    def save(self, stream, kind=None):
+        if isinstance(stream, str):
+            stream = Path(stream).open('wb')
+        self._img.write(stream, self.rows_iter())
+
+    def rows_iter(self):
+        yield from self.border_rows_iter()
+        border_col = [1] * (self.box_size * self.border)
+        for module_row in self.modules:
+            row = border_col + list(chain.from_iterable(([not point] * self.box_size for point in module_row))) + border_col
+            for _ in range(self.box_size):
+                yield row
+        yield from self.border_rows_iter()
+
+    def border_rows_iter(self):
+        border_row = [1] * (self.box_size * (self.width + self.border * 2))
+        for _ in range(self.border * self.box_size):
+            yield border_row
+PymagingImage = PyPNGImage
+
+# Populate namespace for qrcode.image.pure
+qrcode.image.pure.PyPNGImage = PyPNGImage
+qrcode.image.pure.PymagingImage = PymagingImage
+
+# ============================================================
+# Module: qrcode.LUT
+# Original: python-qrcode/qrcode/LUT.py
+# ============================================================
+
+rsPoly_LUT = {7: [1, 127, 122, 154, 164, 11, 68, 117], 10: [1, 216, 194, 159, 111, 199, 94, 95, 113, 157, 193], 13: [1, 137, 73, 227, 17, 177, 17, 52, 13, 46, 43, 83, 132, 120], 15: [1, 29, 196, 111, 163, 112, 74, 10, 105, 105, 139, 132, 151, 32, 134, 26], 16: [1, 59, 13, 104, 189, 68, 209, 30, 8, 163, 65, 41, 229, 98, 50, 36, 59], 17: [1, 119, 66, 83, 120, 119, 22, 197, 83, 249, 41, 143, 134, 85, 53, 125, 99, 79], 18: [1, 239, 251, 183, 113, 149, 175, 199, 215, 240, 220, 73, 82, 173, 75, 32, 67, 217, 146], 20: [1, 152, 185, 240, 5, 111, 99, 6, 220, 112, 150, 69, 36, 187, 22, 228, 198, 121, 121, 165, 174], 22: [1, 89, 179, 131, 176, 182, 244, 19, 189, 69, 40, 28, 137, 29, 123, 67, 253, 86, 218, 230, 26, 145, 245], 24: [1, 122, 118, 169, 70, 178, 237, 216, 102, 115, 150, 229, 73, 130, 72, 61, 43, 206, 1, 237, 247, 127, 217, 144, 117], 26: [1, 246, 51, 183, 4, 136, 98, 199, 152, 77, 56, 206, 24, 145, 40, 209, 117, 233, 42, 135, 68, 70, 144, 146, 77, 43, 94], 28: [1, 252, 9, 28, 13, 18, 251, 208, 150, 103, 174, 100, 41, 167, 12, 247, 56, 117, 119, 233, 127, 181, 100, 121, 147, 176, 74, 58, 197], 30: [1, 212, 246, 77, 73, 195, 192, 75, 98, 5, 70, 103, 177, 22, 217, 138, 51, 181, 246, 72, 25, 18, 46, 228, 74, 216, 195, 11, 106, 130, 150]}
+
+# Populate namespace for qrcode.LUT
+qrcode.LUT.rsPoly_LUT = rsPoly_LUT
+
+# ============================================================
 # Module: qrcode.base
 # Original: python-qrcode/qrcode/base.py
 # ============================================================
@@ -496,16 +567,6 @@ qrcode.base.gexp = gexp
 qrcode.base.Polynomial = Polynomial
 qrcode.base.RSBlock = RSBlock
 qrcode.base.rs_blocks = rs_blocks
-
-# ============================================================
-# Module: qrcode.LUT
-# Original: python-qrcode/qrcode/LUT.py
-# ============================================================
-
-rsPoly_LUT = {7: [1, 127, 122, 154, 164, 11, 68, 117], 10: [1, 216, 194, 159, 111, 199, 94, 95, 113, 157, 193], 13: [1, 137, 73, 227, 17, 177, 17, 52, 13, 46, 43, 83, 132, 120], 15: [1, 29, 196, 111, 163, 112, 74, 10, 105, 105, 139, 132, 151, 32, 134, 26], 16: [1, 59, 13, 104, 189, 68, 209, 30, 8, 163, 65, 41, 229, 98, 50, 36, 59], 17: [1, 119, 66, 83, 120, 119, 22, 197, 83, 249, 41, 143, 134, 85, 53, 125, 99, 79], 18: [1, 239, 251, 183, 113, 149, 175, 199, 215, 240, 220, 73, 82, 173, 75, 32, 67, 217, 146], 20: [1, 152, 185, 240, 5, 111, 99, 6, 220, 112, 150, 69, 36, 187, 22, 228, 198, 121, 121, 165, 174], 22: [1, 89, 179, 131, 176, 182, 244, 19, 189, 69, 40, 28, 137, 29, 123, 67, 253, 86, 218, 230, 26, 145, 245], 24: [1, 122, 118, 169, 70, 178, 237, 216, 102, 115, 150, 229, 73, 130, 72, 61, 43, 206, 1, 237, 247, 127, 217, 144, 117], 26: [1, 246, 51, 183, 4, 136, 98, 199, 152, 77, 56, 206, 24, 145, 40, 209, 117, 233, 42, 135, 68, 70, 144, 146, 77, 43, 94], 28: [1, 252, 9, 28, 13, 18, 251, 208, 150, 103, 174, 100, 41, 167, 12, 247, 56, 117, 119, 233, 127, 181, 100, 121, 147, 176, 74, 58, 197], 30: [1, 212, 246, 77, 73, 195, 192, 75, 98, 5, 70, 103, 177, 22, 217, 138, 51, 181, 246, 72, 25, 18, 46, 228, 74, 216, 195, 11, 106, 130, 150]}
-
-# Populate namespace for qrcode.LUT
-qrcode.LUT.rsPoly_LUT = rsPoly_LUT
 
 # ============================================================
 # Module: qrcode.util
@@ -919,67 +980,6 @@ qrcode.util.QRData = QRData
 qrcode.util.BitBuffer = BitBuffer
 qrcode.util.create_bytes = create_bytes
 qrcode.util.create_data = create_data
-
-# ============================================================
-# Module: qrcode.compat.png
-# Original: python-qrcode/qrcode/compat/png.py
-# ============================================================
-
-PngWriter = None
-try:
-    from png import Writer as PngWriter
-except ImportError:
-    pass
-
-# Populate namespace for qrcode.compat.png
-qrcode.compat.png.PngWriter = PngWriter
-
-# ============================================================
-# Module: qrcode.image.pure
-# Original: python-qrcode/qrcode/image/pure.py
-# ============================================================
-
-class PyPNGImage(BaseImage):
-    """
-    pyPNG image builder.
-    """
-    kind = 'PNG'
-    allowed_kinds = ('PNG',)
-    needs_drawrect = False
-
-    def new_image(self, **kwargs):
-        if not PngWriter:
-            raise ImportError('PyPNG library not installed.')
-        return PngWriter(self.pixel_size, self.pixel_size, greyscale=True, bitdepth=1)
-
-    def drawrect(self, row, col):
-        """
-        Not used.
-        """
-
-    def save(self, stream, kind=None):
-        if isinstance(stream, str):
-            stream = Path(stream).open('wb')
-        self._img.write(stream, self.rows_iter())
-
-    def rows_iter(self):
-        yield from self.border_rows_iter()
-        border_col = [1] * (self.box_size * self.border)
-        for module_row in self.modules:
-            row = border_col + list(chain.from_iterable(([not point] * self.box_size for point in module_row))) + border_col
-            for _ in range(self.box_size):
-                yield row
-        yield from self.border_rows_iter()
-
-    def border_rows_iter(self):
-        border_row = [1] * (self.box_size * (self.width + self.border * 2))
-        for _ in range(self.border * self.box_size):
-            yield border_row
-PymagingImage = PyPNGImage
-
-# Populate namespace for qrcode.image.pure
-qrcode.image.pure.PyPNGImage = PyPNGImage
-qrcode.image.pure.PymagingImage = PymagingImage
 
 # ============================================================
 # Module: qrcode.main

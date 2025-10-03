@@ -163,7 +163,8 @@ class QRCodeConsolidator:
             processed.add(module_name)
 
             # First, recursively add all dependencies that haven't been processed
-            for dep in import_graph.get(module_name, set()):
+            # Sort dependencies for deterministic ordering
+            for dep in sorted(import_graph.get(module_name, set())):
                 if dep in self.modules and dep not in processed:
                     add_module(dep)
 
