@@ -1,0 +1,51 @@
+name: Test
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-golden-masters:
+    runs-on: ubuntu-latest
+    name: Test against golden masters
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Run golden master tests
+      run: python test_qrcode.py
+
+  verify-generated:
+    runs-on: ubuntu-latest
+    name: Verify qrcode.py is up-to-date
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Generate qrcode.py
+      run: python bundler.py python-qrcode/qrcode
+
+    - name: Check if qrcode.py is up-to-date
+      run: |
+        if ! git diff --exit-code qrcode.py; then
+          echo "❌ Error: qrcode.py is not up-to-date!"
+          echo "Please run 'make generate' and commit the changes."
+          exit 1
+        fi
+        echo "✅ qrcode.py is up-to-date"
