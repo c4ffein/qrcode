@@ -7,6 +7,13 @@ by parsing all modules into ASTs and resolving dependencies.
 
 Copyright (c) 2025 c4ffein
 Licensed under the MIT License - see LICENSE file for details
+
+---
+
+This is quick and dirty, and only made to work with this qrcode project
+It could be consolidated by rewriting names to comprehensive chains, like module__variable, otherwise some may overlap
+This wouldn't solve getattr and vars dynamic usage, so keeping this as-is for now
+You may inspire yourself with this for your own project, but I don't think any general bundler would be solid enough
 """
 
 import ast
